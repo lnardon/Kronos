@@ -2,17 +2,15 @@ version: '3'
 
 services:
   reverse-proxy:
-    image: traefik:latest
-    command: --api.insecure=true --providers.docker --entryPoints.web.address=:80 --entryPoints.websecure.address=:443
+    image: 'jc21/nginx-proxy-manager:latest'
+    restart: unless-stopped
     ports:
-      - "80:80"
-      - "8080:8080"
-      - "443:443"
+      - '80:80'
+      - '81:81'
+      - '443:443'
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    labels:
-      - "traefik.http.routers.api.rule=Host(`traefik.local`)"
-      - "traefik.http.routers.api.service=api@internal"
+      - ./data:/data
+      - ./letsencrypt:/etc/letsencrypt
     networks:
       - web
 
@@ -37,23 +35,51 @@ services:
     networks:
       - web
 
-  jellyfin:
-    image: jellyfin/jellyfin:latest
-    ports:
-      - "8096:8096"
-    volumes:
-      - /srv/jellyfin/config:/config
-      - /srv/jellyfin/cache:/cache
-      - /media:/media
-    networks:        
-      - web
-
   uptime-kuma:
     image: louislam/uptime-kuma:latest
     ports:
       - "3001:3001"
     volumes:
       - /app/data:/app/data
+  
+  calibre-web:
+    image: lscr.io/linuxserver/calibre-web:latest
+    container_name: calibre-web
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - DOCKER_MODS=linuxserver/mods:universal-calibre #optional
+      - OAUTHLIB_RELAX_TOKEN_SCOPE=1 #optional
+    volumes:
+      - /path/to/data:/config
+      - /path/to/calibre/library:/books
+    ports:
+      - 8083:8083
+    restart: unless-stopped
+
+  neosmemo-memos:
+    image: neosmemo/memos:latest
+    volumes:
+      - ~/.memos/:/var/opt/memos
+    ports:
+      - "5230:5230"
+    restart: unless-stopped
+
+  code-server:
+    image: lscr.io/linuxserver/code-server:latest
+    container_name: code-server
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - PASSWORD=password #optional
+      - SUDO_PASSWORD=password #optional
+    volumes:
+      - /path/to/appdata/config:/config
+    ports:
+      - 8443:8443
+    restart: unless-stopped
 
 networks:
   web:
